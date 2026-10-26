@@ -1,0 +1,281 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:RCPT-{YYYY}-{#####}",
+ "creation": "2026-10-25 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "receipt_section",
+  "receipt_image",
+  "column_break_receipt",
+  "status",
+  "company",
+  "purchase_invoice",
+  "extracted_section",
+  "supplier_name",
+  "supplier",
+  "bill_number",
+  "column_break_extracted",
+  "bill_date",
+  "currency",
+  "items_section",
+  "items",
+  "totals_section",
+  "lines_total",
+  "tax_amount",
+  "column_break_totals",
+  "total_amount",
+  "ai_section",
+  "review_notes",
+  "error_message",
+  "column_break_ai",
+  "model_used",
+  "processing_time",
+  "ai_raw_section",
+  "ocr_text",
+  "llm_response"
+ ],
+ "fields": [
+  {
+   "fieldname": "receipt_section",
+   "fieldtype": "Section Break",
+   "label": "Receipt"
+  },
+  {
+   "description": "Photo or scan of the receipt. Extraction starts automatically after upload when enabled in Receipt AI Settings.",
+   "fieldname": "receipt_image",
+   "fieldtype": "Attach Image",
+   "label": "Receipt Image",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_receipt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Pending\nProcessing\nExtracted\nNeeds Review\nFailed\nInvoiced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "remember_last_selected_value": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "purchase_invoice",
+   "fieldtype": "Link",
+   "label": "Purchase Invoice",
+   "no_copy": 1,
+   "options": "Purchase Invoice",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "extracted_section",
+   "fieldtype": "Section Break",
+   "label": "Extracted Details"
+  },
+  {
+   "fieldname": "supplier_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Vendor (as printed)"
+  },
+  {
+   "description": "Matched to an existing Supplier by name; created on invoicing if blank and auto-create is enabled.",
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Supplier",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "bill_number",
+   "fieldtype": "Data",
+   "label": "Bill Number"
+  },
+  {
+   "fieldname": "column_break_extracted",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bill_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Bill Date"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Line Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Receipt Capture Item"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "lines_total",
+   "fieldtype": "Currency",
+   "label": "Line Items Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "options": "currency"
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Amount",
+   "options": "currency"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.review_notes || doc.error_message",
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "ai_section",
+   "fieldtype": "Section Break",
+   "label": "AI Extraction"
+  },
+  {
+   "fieldname": "review_notes",
+   "fieldtype": "Small Text",
+   "label": "Review Notes",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ai",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "model_used",
+   "fieldtype": "Data",
+   "label": "Model Used",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "processing_time",
+   "fieldtype": "Float",
+   "label": "Processing Time (s)",
+   "no_copy": 1,
+   "precision": "1",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.ocr_text",
+   "fieldname": "ai_raw_section",
+   "fieldtype": "Section Break",
+   "label": "OCR and Model Output"
+  },
+  {
+   "fieldname": "ocr_text",
+   "fieldtype": "Long Text",
+   "label": "OCR Text",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "llm_response",
+   "fieldtype": "Code",
+   "label": "Model Response",
+   "no_copy": 1,
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "image_field": "receipt_image",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-25 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Receipt Capture",
+ "name": "Receipt Capture",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Employee",
+   "write": 1,
+   "if_owner": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "supplier_name",
+ "track_changes": 1
+}

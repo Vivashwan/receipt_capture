@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    name: Tests on ERPNext v15 (Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DB_ROOT_PASSWORD: ci-root-password
+      ADMIN_PASSWORD: ci-admin-password
+      SITE_NAME: erp.localhost
+      APP_VERSION: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same image and compose stack as production; Ollama isn't needed because
+      # the tests replace OCR and the model with fixed results where required.
+      - name: Build image and create site (ERPNext + receipt_capture)
+        run: |
+          docker compose build
+          docker compose up -d create-site backend
+          docker compose wait create-site
+
+      - name: Run tests
+        run: |
+          docker compose exec -T backend bench --site "$SITE_NAME" set-config allow_tests true
+          docker compose exec -T backend bench --site "$SITE_NAME" run-tests --app receipt_capture
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --tail 200 create-site backend db

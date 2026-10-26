@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "creation": "2026-10-25 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "model_section",
+  "ollama_url",
+  "model",
+  "column_break_model",
+  "request_timeout",
+  "ocr_language",
+  "behaviour_section",
+  "auto_extract_on_upload",
+  "auto_create_supplier",
+  "supplier_group",
+  "column_break_behaviour",
+  "expense_item",
+  "tax_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "model_section",
+   "fieldtype": "Section Break",
+   "label": "Local LLM (Ollama)"
+  },
+  {
+   "default": "http://ollama:11434",
+   "fieldname": "ollama_url",
+   "fieldtype": "Data",
+   "label": "Ollama URL",
+   "reqd": 1
+  },
+  {
+   "default": "qwen2.5:1.5b",
+   "description": "Any model pulled on the Ollama server, e.g. qwen2.5:1.5b (fast) or llama3.1:8b (more accurate).",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_model",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "180",
+   "fieldname": "request_timeout",
+   "fieldtype": "Int",
+   "label": "Request Timeout (s)"
+  },
+  {
+   "default": "eng",
+   "description": "Tesseract language code(s), e.g. eng or eng+hin.",
+   "fieldname": "ocr_language",
+   "fieldtype": "Data",
+   "label": "OCR Language"
+  },
+  {
+   "fieldname": "behaviour_section",
+   "fieldtype": "Section Break",
+   "label": "Behaviour"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_extract_on_upload",
+   "fieldtype": "Check",
+   "label": "Extract Automatically on Upload"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_supplier",
+   "fieldtype": "Check",
+   "label": "Create Supplier if Not Found"
+  },
+  {
+   "depends_on": "auto_create_supplier",
+   "fieldname": "supplier_group",
+   "fieldtype": "Link",
+   "label": "Supplier Group for New Suppliers",
+   "options": "Supplier Group"
+  },
+  {
+   "fieldname": "column_break_behaviour",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Non-stock item used for Purchase Invoice lines that aren't mapped to a specific Item.",
+   "fieldname": "expense_item",
+   "fieldtype": "Link",
+   "label": "Default Expense Item",
+   "options": "Item"
+  },
+  {
+   "description": "If set, the receipt's tax is added to the Purchase Invoice as an Actual tax row on this account.",
+   "fieldname": "tax_account",
+   "fieldtype": "Link",
+   "label": "Tax Account",
+   "options": "Account"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-25 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Receipt Capture",
+ "name": "Receipt AI Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
