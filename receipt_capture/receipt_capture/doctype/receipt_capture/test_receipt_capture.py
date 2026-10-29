@@ -221,7 +221,9 @@ class TestReceiptCapture(FrappeTestCase):
 
 		self.assertEqual(pi.docstatus, 0, "invoice must stay a draft for an accountant to review")
 		self.assertEqual(pi.company, self.company)
-		self.assertEqual(frappe.db.get_value("Supplier", pi.supplier, "supplier_name"), "Annapurna Stores")
+		# Suppliers match case-insensitively, so an earlier "ANNAPURNA STORES" may be reused
+		supplier_name = frappe.db.get_value("Supplier", pi.supplier, "supplier_name")
+		self.assertEqual(supplier_name.casefold(), "annapurna stores")
 		self.assertEqual(getdate(pi.posting_date), getdate("2026-03-12"))
 		self.assertEqual(pi.bill_no, "B-1042")
 		self.assertEqual(
@@ -255,6 +257,26 @@ class TestReceiptCapture(FrappeTestCase):
 		self.assertEqual([(row.account_head, row.tax_amount) for row in pi.taxes], [(tax_account, 24)])
 		self.assertEqual(pi.grand_total, 504)
 
+	def test_explains_when_the_user_cannot_create_the_supplier(self):
+		# ERPNext lets an Accounts User create invoices but not suppliers
+		email = "_test_receipt_accounts_user@example.com"
+		if not frappe.db.exists("User", email):
+			frappe.get_doc({"doctype": "User", "email": email, "first_name": "Accounts"}).insert()
+		frappe.get_doc("User", email).add_roles("Accounts User")
+		receipt = self.extract(
+			self.make_receipt(), llm_result={**LLM_RESULT, "vendor": "Brand New Vendor Pvt Ltd"}
+		)
+
+		frappe.set_user(email)
+		try:
+			with self.assertRaises(frappe.PermissionError) as raised:
+				receipt.make_purchase_invoice()
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn("can't create suppliers", str(raised.exception))
+		self.assertFalse(frappe.db.exists("Supplier", {"supplier_name": "Brand New Vendor Pvt Ltd"}))
+
 	def test_only_extracted_receipts_can_be_invoiced(self):
 		with self.assertRaises(frappe.ValidationError):
 			self.make_receipt().make_purchase_invoice()
@@ -282,11 +304,29 @@ class TestReceiptCapture(FrappeTestCase):
 
 		_columns, data, _message, chart, summary = execute({"company": self.company})
 
-		row = next(r for r in data if r.supplier_name == "Annapurna Stores")
+		# MariaDB groups names case-insensitively, like the supplier matching
+		row = next(r for r in data if r.supplier_name.casefold() == "annapurna stores")
 		self.assertGreaterEqual(row.receipts, 2)
 		self.assertGreaterEqual(row.invoiced, 1)
 		self.assertGreater(row.pending_amount, 0)
 		self.assertTrue(chart and summary)
+
+	def test_date_filters_keep_failed_receipts_without_a_bill_date(self):
+		from receipt_capture.receipt_capture.report.receipt_capture_summary.receipt_capture_summary import (
+			execute,
+		)
+
+		failed = self.extract(self.make_receipt(), ocr_error=ocr.OCRError("blurry"))
+		self.assertFalse(failed.bill_date)
+		today = getdate()
+
+		_columns, data, _message, _chart, summary = execute(
+			{"company": self.company, "from_date": today, "to_date": today, "status": "Failed"}
+		)
+
+		self.assertGreaterEqual(sum(row.receipts for row in data), 1)
+		attention = next(card for card in summary if card["label"] == "Needs Attention")
+		self.assertGreaterEqual(attention["value"], 1)
 
 	def test_settings_validation(self):
 		settings = frappe.get_single("Receipt AI Settings")

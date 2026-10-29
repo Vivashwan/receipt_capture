@@ -12,13 +12,15 @@ frappe.query_reports["Receipt Capture Summary"] = {
 		},
 		{
 			fieldname: "from_date",
-			label: __("From Bill Date"),
+			label: __("From Date"),
+			description: __("Bill date, or upload date when the receipt has none"),
 			fieldtype: "Date",
 			default: frappe.datetime.add_months(frappe.datetime.get_today(), -1),
 		},
 		{
 			fieldname: "to_date",
-			label: __("To Bill Date"),
+			label: __("To Date"),
+			description: __("Bill date, or upload date when the receipt has none"),
 			fieldtype: "Date",
 			default: frappe.datetime.get_today(),
 		},

@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder.functions import Avg, Count, Sum
+from frappe.query_builder.functions import Avg, Coalesce, Count, Date, Sum
 from frappe.utils import flt
 from pypika.terms import Case
 
@@ -44,6 +44,8 @@ def get_data(filters):
 	rc = frappe.qb.DocType("Receipt Capture")
 	is_invoiced = rc.status == "Invoiced"
 	needs_attention = rc.status.isin(["Needs Review", "Failed"])
+	# Failed receipts have no bill date; fall back to the upload date so date filters don't hide them
+	receipt_date = Coalesce(rc.bill_date, Date(rc.creation))
 
 	query = (
 		frappe.qb.from_(rc)
@@ -65,9 +67,9 @@ def get_data(filters):
 	if filters.company:
 		query = query.where(rc.company == filters.company)
 	if filters.from_date:
-		query = query.where(rc.bill_date >= filters.from_date)
+		query = query.where(receipt_date >= filters.from_date)
 	if filters.to_date:
-		query = query.where(rc.bill_date <= filters.to_date)
+		query = query.where(receipt_date <= filters.to_date)
 	if filters.status:
 		query = query.where(rc.status == filters.status)
 

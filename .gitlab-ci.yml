@@ -1,0 +1,71 @@
+# GitLab CI: the same checks as .github/workflows/ci.yml and the Jenkinsfile.
+#
+# lint and triage-selftest run in plain containers on any runner. The e2e job needs a runner
+# tagged `e2e` with the shell executor and Docker, Python 3.10+, Node 20 and Chrome: the browser
+# must reach the stack at http://erp.localhost:8080, which Docker-in-Docker can't provide.
+# Set DB_ROOT_PASSWORD and ADMIN_PASSWORD as masked CI/CD variables.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+stages: [lint, test, e2e]
+
+lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - pip install -q ruff
+    - ruff check .
+    - ruff format --check .
+
+triage-selftest:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - python -m unittest discover -s e2e/triage
+
+e2e:
+  stage: e2e
+  tags: [e2e]
+  timeout: 90m
+  resource_group: e2e-stack # one stack per runner: the suites share its ports and site
+  variables:
+    COMPOSE_PROJECT_NAME: receipt-capture-ci
+    SITE_NAME: erp.localhost
+    BASE_URL: http://erp.localhost:8080
+    HEADLESS: "1"
+    # SMOKE: "--smoke" to run only the smoke tests (e.g. from "Run pipeline")
+    SMOKE: ""
+  script:
+    - docker compose up -d --build
+    - docker compose wait create-site ollama-pull
+    - docker compose exec -T backend bench --site "$SITE_NAME" execute receipt_capture.e2e_setup.setup_site
+    # Run every suite, then fail the job if any failed, so all results are reported
+    - status=0
+    - e2e/run-suite.sh python $SMOKE || status=1
+    - e2e/run-suite.sh js $SMOKE || status=1
+    - e2e/run-suite.sh dotnet $SMOKE || status=1
+    - exit $status
+  after_script:
+    - docker compose logs --no-color --tail 300 backend queue-long websocket frontend > compose.log 2>&1 || true
+    - python3 e2e/triage/triage.py --results 'e2e/**/junit.xml' --artifacts e2e --logs compose.log --out triage || true
+    # Keep the downloaded model between pipelines; drop the site, database and queue
+    - docker compose down
+    - docker volume rm "${COMPOSE_PROJECT_NAME}_sites" "${COMPOSE_PROJECT_NAME}_db-data" "${COMPOSE_PROJECT_NAME}_redis-queue-data" || true
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    reports:
+      junit:
+        - e2e/python/artifacts/junit.xml
+        - e2e/js/artifacts/junit.xml
+        - e2e/dotnet/ReceiptCapture.E2E/TestResults/junit.xml
+    paths:
+      - triage.md
+      - triage.json
+      - compose.log
+      - e2e/**/artifacts/
+      - e2e/dotnet/ReceiptCapture.E2E/TestResults/

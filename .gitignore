@@ -4,3 +4,12 @@ __pycache__/
 *.egg-info/
 .DS_Store
 node_modules/
+
+# Selenium e2e outputs
+e2e/**/bin/
+e2e/**/obj/
+e2e/**/artifacts/
+e2e/**/TestResults/
+e2e/**/.venv/
+e2e/**/.pytest_cache/
+.nuget/

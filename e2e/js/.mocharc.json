@@ -1,0 +1,13 @@
+{
+  "spec": [
+    "test/login.spec.js",
+    "test/settings.spec.js",
+    "test/receipt-to-invoice.spec.js",
+    "test/failed-receipt.spec.js",
+    "test/report.spec.js",
+    "test/permissions.spec.js"
+  ],
+  "timeout": 300000,
+  "slow": 15000,
+  "require": "support/hooks.js"
+}

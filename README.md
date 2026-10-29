@@ -33,7 +33,7 @@ cp .env.example .env        # set DB_ROOT_PASSWORD and ADMIN_PASSWORD
 docker compose up -d --build
 ```
 
-Open http://localhost:8080 and log in as `Administrator` with your `ADMIN_PASSWORD`. First start takes a few minutes: it creates the site, installs ERPNext and this app, and downloads the model. Then:
+Open **http://erp.localhost:8080** (the site name, `SITE_NAME`; `*.localhost` resolves to your machine) and log in as `Administrator` with your `ADMIN_PASSWORD`. Use the site name rather than `localhost`: Frappe's realtime server only accepts connections whose host matches the site, and without it the form won't update live when extraction finishes. First start takes a few minutes: it creates the site, installs ERPNext and this app, and downloads the model. Then:
 
 1. Complete the ERPNext setup wizard (company, fiscal year).
 2. In **Receipt AI Settings**, choose a non-stock **Default Expense Item** (and optionally a Tax Account), then click *Test Ollama Connection*.
@@ -78,7 +78,7 @@ On a tilted, noisy test receipt (`RICE 320.00 / DAL 160.00 / GST 24.00 / TOTAL 5
 ### Development
 
 ```bash
-# Tests: 53 tests (extraction, Ollama client, OCR on generated images, and ERPNext integration)
+# Tests: 55 tests (extraction, Ollama client, OCR on generated images, and ERPNext integration)
 bench --site your.site set-config allow_tests true
 bench --site your.site run-tests --app receipt_capture
 
@@ -86,7 +86,51 @@ bench --site your.site run-tests --app receipt_capture
 ruff check . && ruff format --check .
 ```
 
-CI (`.github/workflows/ci.yml`) runs Ruff, then builds the Docker image, creates a fresh ERPNext site with the app, and runs the full test suite.
+### Browser tests (Selenium WebDriver)
+
+The same 16 user journeys are automated three times: in **Python** (pytest + Selenium, [`e2e/python`](e2e/python)), **JavaScript** (Mocha + `selenium-webdriver`, [`e2e/js`](e2e/js)) and **C#** (NUnit + Selenium WebDriver, [`e2e/dotnet`](e2e/dotnet)). All three run against the real Docker stack, with the real OCR and local model, use the Page Object pattern, and tag Login and Settings as a quick **smoke** subset.
+
+| Suite | What it checks |
+|---|---|
+| Login | Wrong password is rejected; valid login reaches the desk |
+| Receipt AI Settings | *Test Ollama Connection* reports the model as ready |
+| Receipt → invoice | Upload a photo → form switches from *Processing* to *Extracted* **live, without a page reload** → vendor, lines, tax and total match the photo, with no TOTAL/GST rows as items → *Create Purchase Invoice* opens a **draft** for ₹504 with GST → receipt is *Invoiced* and locked |
+| Unreadable receipt | Blank image → *Failed* with an actionable message → user keys in lines by hand, totals stay in sync, mismatch warning, corrections saved |
+| Summary report | Per-supplier counts; failed receipts (no bill date) still appear in a date range |
+| Permissions | Accounts User can read settings but not test the connection; a user without an accounts role is refused |
+
+```bash
+docker compose up -d --build
+docker compose exec backend bench --site erp.localhost execute receipt_capture.e2e_setup.setup_site
+
+export ADMIN_PASSWORD=...
+e2e/run-suite.sh python            # or js, dotnet; add --smoke for the smoke subset
+```
+
+`e2e/run-suite.sh` is what every CI system calls, and writes JUnit XML for each suite. Without .NET installed, it runs the C# suite in the .NET SDK container.
+
+`setup_site` seeds an Indian company, an expense item, a GST account and two test users. Set `HEADLESS=0` to watch the browser, or `SELENIUM_REMOTE_URL` to use a Selenium Grid. A failing test saves a screenshot, the page HTML and the **browser console** to `artifacts/`. Waits are explicit only, with retries for elements Frappe re-renders, which keeps the suites stable on repeated runs.
+
+Writing these tests found bugs that the Python tests couldn't, because they only run in the browser or across services. All are fixed:
+
+- *Create Purchase Invoice* always failed: the client called the method without `doc`, so Frappe looked for a module-level function.
+- The form never updated live: Frappe's realtime server rejected the browser's socket (host vs. origin mismatch behind nginx) and couldn't reach the backend to authenticate it (`webserver_host` was unset).
+- Rows a user started typing right after extraction finished were wiped: the app reloaded the form on its own event while Frappe also reloaded it on `doc_update`, and the second reload landed after the edit.
+- Failed receipts disappeared from the summary report as soon as a date filter was set, because they have no bill date.
+- Users who can't create suppliers got a bare "Not permitted" when invoicing a new vendor; they now get a message saying what to do.
+- `docker compose up --build` built the same image once per service, which fails on Docker's classic builder.
+
+### AI failure triage
+
+[`e2e/triage/triage.py`](e2e/triage/triage.py) runs after a failed build. It reads every suite's JUnit XML, pairs each failure with the page and browser console its hook saved plus recent service logs, and asks the stack's own local model (Ollama) to classify it as a **product bug, test bug, environment, test data or flaky** issue, with a likely cause and next step. Known failure signatures (for example `Invalid origin`, a refused connection, a failed login) are matched first and passed to the model as hints, with causes ranked above symptoms. That keeps a 1.5B CPU model accurate: on a run opened at `localhost` it traced *Extraction did not finish* back to the socket origin error in the browser console. The report (`triage.md`, `triage.json`) is advisory: the tool exits 0, falls back to signature matching if the model is down, and has its own unit tests (`python -m unittest discover -s e2e/triage`).
+
+### CI
+
+The same pipeline is defined for three CI systems, and each one runs the suites through `e2e/run-suite.sh`:
+
+- **GitHub Actions** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): Ruff; the Python tests on a fresh ERPNext site; then the full stack with all three Selenium suites, AI triage on failure, and screenshots, reports and triage uploaded.
+- **Jenkins** ([`Jenkinsfile`](Jenkinsfile)): a declarative pipeline with one stage per suite (`catchError`, so every suite reports), JUnit publishing, archived artifacts, a `SMOKE_ONLY` parameter, credentials for passwords, and teardown that keeps the downloaded model.
+- **GitLab CI** ([`.gitlab-ci.yml`](.gitlab-ci.yml)): lint and triage self-test in containers, and the e2e job on a shell runner, for merge requests and the default branch, with JUnit reports in the merge request.
 
 ### License
 

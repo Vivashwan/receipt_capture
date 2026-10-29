@@ -15,13 +15,13 @@ frappe.ui.form.on("Receipt Capture", {
 		// Only non-stock items make sense on an expense receipt
 		frm.set_query("item_code", "items", () => ({ filters: { is_stock_item: 0, disabled: 0 } }));
 		frm.set_query("supplier", () => ({ filters: { disabled: 0 } }));
-	},
 
-	onload(frm) {
-		// The background job pushes an event when extraction finishes; reload to show the result
+		// The background job saves the receipt, and Frappe reloads the open form on that
+		// doc_update when it has no unsaved changes. Reloading here as well would race
+		// Frappe's (debounced) reload, which could then wipe edits made in between. So only
+		// tell the user. Registered in setup, which runs once per form, not on every load.
 		frappe.realtime.on("receipt_capture_update", (data) => {
-			if (data.name === frm.doc.name && !frm.is_dirty()) {
-				frm.reload_doc();
+			if (data.name === frm.doc.name) {
 				frappe.show_alert({
 					message: __("Extraction finished: {0}", [__(data.status)]),
 					indicator: STATUS_COLORS[data.status] || "blue",
@@ -50,7 +50,8 @@ frappe.ui.form.on("Receipt Capture", {
 			frm.add_custom_button(
 				__("Create Purchase Invoice"),
 				() => {
-					frm.call({ method: "make_purchase_invoice", freeze: true, freeze_message: __("Creating invoice…") }).then((r) => {
+					// `doc` makes this a call to the document's method, not a module-level function
+					frm.call({ doc: frm.doc, method: "make_purchase_invoice", freeze: true, freeze_message: __("Creating invoice…") }).then((r) => {
 						if (r.message) frappe.set_route("Form", "Purchase Invoice", r.message);
 					});
 				},

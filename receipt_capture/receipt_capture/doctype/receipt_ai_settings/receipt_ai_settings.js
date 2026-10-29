@@ -9,6 +9,8 @@ frappe.ui.form.on("Receipt AI Settings", {
 	},
 
 	refresh(frm) {
+		// check_ollama is System Manager only; Accounts Users can read the settings but not test them
+		if (!frappe.user.has_role("System Manager")) return;
 		frm.add_custom_button(__("Test Ollama Connection"), () => {
 			frappe
 				.call({ method: "receipt_capture.api.check_ollama", freeze: true, freeze_message: __("Contacting Ollama…") })

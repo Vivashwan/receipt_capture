@@ -1,0 +1,17 @@
+{
+  "name": "receipt-capture-e2e",
+  "private": true,
+  "description": "Selenium WebDriver end-to-end tests for the Receipt Capture ERPNext app",
+  "type": "module",
+  "scripts": {
+    "test": "mocha",
+    "test:smoke": "mocha --grep @smoke"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "mocha": "^12.0.3",
+    "selenium-webdriver": "^4.46.0"
+  }
+}

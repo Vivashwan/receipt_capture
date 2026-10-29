@@ -111,6 +111,14 @@ def get_or_create_supplier(vendor: str, settings) -> str:
 				frappe.bold(vendor)
 			)
 		)
+	if not frappe.has_permission("Supplier", "create"):
+		# e.g. an Accounts User: ERPNext lets them invoice but not add suppliers
+		frappe.throw(
+			_(
+				"No Supplier named {0}, and you can't create suppliers. Choose an existing Supplier on the receipt, or ask a Purchase Master Manager to add it."
+			).format(frappe.bold(vendor)),
+			frappe.PermissionError,
+		)
 
 	supplier_group = (
 		settings.supplier_group

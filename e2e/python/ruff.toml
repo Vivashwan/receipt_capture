@@ -1,0 +1,5 @@
+extend = "../../pyproject.toml"
+
+[lint.isort]
+# Modules of this suite, imported from its root (pytest puts it on sys.path)
+known-first-party = ["config", "conftest", "pages"]
